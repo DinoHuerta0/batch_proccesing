@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StringType, IntegerType, LongType, ShortType, DoubleType, FloatType, BooleanType, DateType, TimestampType, BinaryType, StructField, ArrayType
 from pyspark.sql.functions import (count, when, isnull, expr, lit, coalesce, trim, lower,
@@ -145,52 +144,3 @@ class SparkUtils:
         if partition_col is not None:
             writer = writer.partitionBy(partition_col)
         writer.parquet(path)
-
-    @staticmethod
-    def schema_as_text(df) -> str:
-        return df._jdf.schema().treeString()
-
-    @staticmethod
-    def sample_as_text(df, rows=20, truncate=80, vertical=True) -> str:
-        return df._jdf.showString(rows, truncate, vertical)
-
-    @staticmethod
-    def sample_as_json(df, rows=20) -> list:
-        return df.limit(rows).toJSON().collect()
-
-    def debug_report(self, df, title="", rows=20, count_rows=False) -> str:
-        sample = df.limit(rows)
-        files = df.inputFiles()
-
-        lines = [f"Debug report - {datetime.now(timezone.utc).isoformat()}", title, ""]
-
-        lines.append(f"Files read: {len(files)}")
-        for f in files[:10]:
-            lines.append(f"  {f}")
-        if len(files) > 10:
-            lines.append(f"  ... and {len(files) - 10} more")
-        lines.append(f"Columns: {len(df.columns)}")
-        if count_rows:
-            lines.append(f"Row count: {df.count():,}")
-        lines.append("")
-
-        lines.append("=== SCHEMA ===")
-        lines.append(SparkUtils.schema_as_text(df))
-
-        lines.append(f"=== SAMPLE ({rows} rows, vertical) ===")
-        lines.append(SparkUtils.sample_as_text(sample, rows))
-
-        lines.append(f"=== SAMPLE ({rows} rows, JSON) ===")
-        lines.extend(SparkUtils.sample_as_json(sample, rows))
-
-        return "\n".join(lines) + "\n"
-
-    def write_text(self, path, text):
-        jvm = self._spark._jvm
-        hadoop_path = jvm.org.apache.hadoop.fs.Path(path)
-        fs = hadoop_path.getFileSystem(self._spark._jsc.hadoopConfiguration())
-        stream = fs.create(hadoop_path, True)
-        try:
-            stream.write(bytearray(text.encode("utf-8")))
-        finally:
-            stream.close()

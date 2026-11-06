@@ -7,8 +7,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Overture road speed profile")
     parser.add_argument("--input", required=True, help="Segment Parquet folder")
     parser.add_argument("--output", required=True, help="Base output path (s3://...)")
-    parser.add_argument("--report", default=None, help="Text report path (s3://...)")
-    parser.add_argument("--rows", type=int, default=20, help="Rows per report sample")
     return parser.parse_args()
 
 
@@ -31,22 +29,8 @@ def main():
 
         SparkUtils.write_parquet(df_result, segments_path, "class")
         SparkUtils.write_parquet(df_profile_sorted, profile_path)
-
-        if args.report is not None:
-            report = (su.debug_report(df_raw, title=f"Input: {args.input}", rows=5)
-                      + su.debug_report(su.spark.read.parquet(profile_path),
-                                        title=f"Output: {profile_path}", rows=args.rows)
-                      + su.debug_report(su.spark.read.parquet(segments_path),
-                                        title=f"Output: {segments_path}", rows=args.rows))
-            su.write_text(args.report, report)
-
-    except Exception as e:
-        if args.report is not None:
-            su.write_text(args.report, f"Input: {args.input}\n\n=== ERROR ===\n{type(e).__name__}: {e}\n")
+    finally:
         su.spark.stop()
-        raise
-
-    su.spark.stop()
 
 
 if __name__ == "__main__":

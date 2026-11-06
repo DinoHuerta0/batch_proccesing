@@ -8,7 +8,7 @@ A batch pipeline that reads the **Transportation / Segment** data of the [Overtu
 
 | File | Description |
 |---|---|
-| `spark_utils_emr.py` | `SparkUtils` class. Creates the Spark session and contains every transformation, the persistence method and the debug report helpers. |
+| `spark_utils_emr.py` | `SparkUtils` class. Creates the Spark session and contains every transformation and the persistence method. |
 | `project.py` | Driver script. Parses the arguments, creates the `SparkUtils` object, reads the input and calls the methods in order. |
 
 ## Pipeline
@@ -32,7 +32,6 @@ All transformations are lazy; the job is triggered by the Parquet write.
 | Input (segment) | `s3://iteso-bigdata-sebastian/data/project/segment/` |
 | Output — segments, partitioned by `class` | `s3://iteso-bigdata-sebastian/output/project/segments_speed_profile/` |
 | Output — class profile | `s3://iteso-bigdata-sebastian/output/project/class_profile/` |
-| Debug report (optional) | `s3://iteso-bigdata-sebastian/debug/speed_profile_report.txt` |
 
 ## Running on AWS EMR
 
@@ -50,8 +49,7 @@ All transformations are lazy; the job is triggered by the Parquet write.
      --py-files s3://iteso-bigdata-sebastian/src/spark_utils_emr.py \
      s3://iteso-bigdata-sebastian/src/project.py \
      --input s3://iteso-bigdata-sebastian/data/project/segment/ \
-     --output s3://iteso-bigdata-sebastian/output/project/ \
-     --report s3://iteso-bigdata-sebastian/debug/speed_profile_report.txt
+     --output s3://iteso-bigdata-sebastian/output/project/
    ```
 
 ### Arguments
@@ -60,8 +58,6 @@ All transformations are lazy; the job is triggered by the Parquet write.
 |---|---|---|
 | `--input` | Yes | Folder with the segment Parquet files. |
 | `--output` | Yes | Base S3 path where both outputs are written. |
-| `--report` | No | Text file with the input schema and samples of both outputs read back. |
-| `--rows` | No | Rows per sample in the report (default 20). |
 
 ## Environment
 
