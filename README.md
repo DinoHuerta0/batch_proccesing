@@ -90,14 +90,34 @@ Results of the run on 2026-11-06 (EMR step `speed-profile`, status **Completed**
 - **Segment–connector join (Stage 9):** 30.3 GiB of shuffle read processed by 1,000 tasks.
 - **Output:** `segments_speed_profile/` contains one `class=<value>/` folder for each of the 17 road classes, plus the `_SUCCESS` marker.
 
-### Notes
+> **Input size in the Spark UI:** Parquet is columnar, so Spark only reads the columns each transformation needs (column pruning). The input shown in the Spark UI is therefore lower than the 34.3 GiB stored in the bucket, even though both folders are read in full.
 
-- **Failed task attempts:** in Stage 4, 96 of the 288 task attempts failed with `FAILED_READ_FILE.NO_HINT` while reading the connector files from S3, at a time when other stages were also reading from the bucket. Spark retried each one automatically and all 192 tasks succeeded, so the output was not affected.
-- **Input size in the Spark UI:** Parquet is columnar, so Spark only reads the columns each transformation needs (column pruning). The input shown in the Spark UI is therefore lower than the 34.3 GiB stored in the bucket, even though both folders are read in full.
+## Results
+
+The `class_profile` output covers **58,388,368 road segments** in **17 road classes**. Main classes:
+
+| Class | Segments | % with speed limit | % with name | Avg. speed limit (km/h) | Avg. intersections |
+|---|---|---|---|---|---|
+| residential | 24,229,385 | 8.78 | 68.61 | 40.6 | 1.79 |
+| service | 13,755,234 | 1.07 | 2.31 | 29.9 | 0.28 |
+| footway | 4,377,798 | 0.03 | 2.60 | 25.3 | 0.56 |
+| tertiary | 3,208,038 | 23.26 | 83.02 | 51.7 | 1.99 |
+| secondary | 1,947,424 | 39.25 | 84.06 | 60.3 | 2.00 |
+| primary | 1,179,933 | 52.94 | 80.80 | 67.1 | 2.00 |
+| trunk | 614,512 | 61.03 | 67.96 | 79.0 | 2.00 |
+| motorway | 238,663 | 45.08 | 32.15 | 98.6 | 1.99 |
+
+Key findings:
+
+- **Coverage depends on the importance of the road.** Trunk, primary and motorway segments have the highest share of speed limits, while residential and service roads, about 65% of all segments, rarely have one.
+- **Speed limits follow the road hierarchy**, from 98.6 km/h on motorways to 40.6 km/h on residential streets.
+- **Main roads are highly connected** (about 2 intersections per segment), while service roads and tracks (0.28) usually end without connecting to another road.
+- **Data quality:** most classes reach the 5 km/h lower bound of the cleaning step, and some have unrealistic maximums (177 km/h on residential, 200 km/h on service), which are probably tagging errors in the source data.
 
 ## Future improvements
 
 - **Fewer small files:** each `class=<value>/` folder currently contains up to 500 small Parquet files, one per task of the last stage. Applying `df.repartition(n, "class")` before the write would group the rows of each class into fewer tasks and reduce the number of files per partition.
+- **Outlier detection:** use per-class ranges or percentiles instead of the global 5–200 km/h range to detect wrong speed limits.
 
 ## Data license
 
