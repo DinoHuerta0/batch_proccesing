@@ -73,6 +73,32 @@ All transformations are lazy; the job is triggered by the Parquet write. The seg
 - 1 primary and 6 core nodes
 - EC2 instance profile with read/write access to the bucket
 
+## Dataset size
+
+| Type | Parquet files | Size | Records |
+|---|---|---|---|
+| connector | 32 | 23.2 GiB | 423,889,001 |
+| segment | 21 | 11.1 GiB | 58,618,049 |
+| **Total** | **53** | **34.3 GiB** | **482,507,050** |
+
+## Run summary
+
+Results of the run on 2026-11-06 (EMR step `speed-profile`, status **Completed**):
+
+- **Total uptime:** 12 minutes, with 16 completed jobs and 16 completed stages (43 skipped because their shuffle output was reused).
+- **Connector read (Stage 4):** 11.4 GiB and 423,889,001 records processed by 192 tasks, with 19.2 GiB of shuffle write.
+- **Segment–connector join (Stage 9):** 30.3 GiB of shuffle read processed by 1,000 tasks.
+- **Output:** `segments_speed_profile/` contains one `class=<value>/` folder for each of the 17 road classes, plus the `_SUCCESS` marker.
+
+### Notes
+
+- **Failed task attempts:** in Stage 4, 96 of the 288 task attempts failed with `FAILED_READ_FILE.NO_HINT` while reading the connector files from S3, at a time when other stages were also reading from the bucket. Spark retried each one automatically and all 192 tasks succeeded, so the output was not affected.
+- **Input size in the Spark UI:** Parquet is columnar, so Spark only reads the columns each transformation needs (column pruning). The input shown in the Spark UI is therefore lower than the 34.3 GiB stored in the bucket, even though both folders are read in full.
+
+## Future improvements
+
+- **Fewer small files:** each `class=<value>/` folder currently contains up to 500 small Parquet files, one per task of the last stage. Applying `df.repartition(n, "class")` before the write would group the rows of each class into fewer tasks and reduce the number of files per partition.
+
 ## Data license
 
 Overture transportation data is published under the [ODbL](https://opendatacommons.org/licenses/odbl/) license, © OpenStreetMap contributors and Overture Maps Foundation.
